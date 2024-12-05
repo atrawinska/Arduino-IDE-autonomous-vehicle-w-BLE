@@ -53,10 +53,13 @@ uint8_t data[7];
 #include <BLEUtils.h>
 #include <BLE2902.h>
 #include <BLE2901.h>
-
+//server
 BLEServer *pServer = NULL;
 BLECharacteristic *pCharacteristic = NULL;
 BLE2901 *descriptor_2901 = NULL;
+//client
+BLECharacteristic *pCharacteristic2 = NULL;
+
 
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
@@ -66,7 +69,8 @@ uint32_t value = 0;
 // https://www.uuidgenerator.net/
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8" //send
+#define CHARACTERISTIC_UUID2 "beb5483e-36e1-4688-b7f5-ea07361b26a9" //write
 
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) {
@@ -78,6 +82,31 @@ class MyServerCallbacks : public BLEServerCallbacks {
   }
 };
 
+
+class CharacteristicCallback: public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic2) {
+    Serial.println("receivbbed");
+    // Get the incoming data as a string or bytes
+   String value = pCharacteristic2->getValue(); // Get the entire value as a std::string
+    
+    if(value.length()>0){
+      Serial.println("received value:");
+      for(int i = 0; i<value.length(); i++){
+         Serial.println(value[i]);
+        
+      }
+    }
+    
+  }
+};
+
+
+
+
+
+
+
+
 void setup() {
 Serial.begin(115200);
   CS_init();
@@ -86,15 +115,17 @@ Serial.begin(115200);
   servoInit();
 
   BTinit();
+
   
 
 }
 
 void loop() {
 
+/*
   CS_run();
   US_run();
-  IR_run();
+  IR_run(); */
   BLE();
   BTrun();
   
@@ -117,8 +148,18 @@ void BTinit(){
   // Create a BLE Characteristic
   pCharacteristic = pService->createCharacteristic(
     CHARACTERISTIC_UUID,
-    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_INDICATE
+     BLECharacteristic::PROPERTY_READ | 
+    BLECharacteristic::PROPERTY_NOTIFY
+   );
+
+  pCharacteristic2 = pService->createCharacteristic( //client
+    CHARACTERISTIC_UUID2,
+    BLECharacteristic::PROPERTY_READ |
+     BLECharacteristic::PROPERTY_WRITE |
+     BLECharacteristic::PROPERTY_WRITE_NR //new
   );
+  //callback
+  pCharacteristic2->setCallbacks(new CharacteristicCallback());
 
   // Creates BLE Descriptor 0x2902: Client Characteristic Configuration Descriptor (CCCD)
   pCharacteristic->addDescriptor(new BLE2902());
@@ -127,6 +168,9 @@ void BTinit(){
   descriptor_2901->setDescription("My own description for this characteristic.");
   descriptor_2901->setAccessPermissions(ESP_GATT_PERM_READ);  // enforce read only - default is Read|Write
   pCharacteristic->addDescriptor(descriptor_2901);
+
+  pCharacteristic2->addDescriptor(new BLE2902());
+  
 
   // Start the service
   pService->start();
@@ -163,7 +207,6 @@ void BTrun(){
   }
 
 }
-
 
 
 ///////COLOUR SENSOR

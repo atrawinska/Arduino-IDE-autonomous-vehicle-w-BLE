@@ -1,3 +1,10 @@
+//delay function without pasuing
+
+
+
+
+
+
 ///Infrared sensor
 #define SENSOR_PIN 23
 
@@ -30,6 +37,9 @@ float distanceCm;
 #define S3 4 /*Define S3 Pin Number of ESP32*/
 #define sensorOut 9 /*Define Sensor Output Pin Number of ESP32*/
 //works :)
+#define BATTERY_PIN 36
+int Vsource = 0;
+//battery
 /*Define int variables*/
 int Red = 0;
 int Green = 0;
@@ -67,7 +77,8 @@ uint32_t value = 0;
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-
+int receivedValue =0; //initialized the received value from the app
+///needed ti send values to the app
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) {
     deviceConnected = true;
@@ -76,7 +87,29 @@ class MyServerCallbacks : public BLEServerCallbacks {
   void onDisconnect(BLEServer *pServer) {
     deviceConnected = false;
   }
+
+  
 };
+
+/// Receiving values from the app
+class MyCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic) {
+    String value = pCharacteristic->getValue();
+    if (value.length() > 0) {
+        Serial.print("Received value: ");
+        for (char c : value) {
+            Serial.print((uint8_t)c, HEX); // Print each byte as a hex value
+            Serial.print(" ");
+           receivedValue +=c;
+           Serial.print("established:");
+           Serial.print(receivedValue);
+        }
+        Serial.println();
+    }
+  }
+};
+
+
 
 void setup() {
 Serial.begin(115200);
@@ -84,6 +117,7 @@ Serial.begin(115200);
   US_init();
   pinMode(SENSOR_PIN, INPUT); //IR init
   servoInit();
+  pinMode(BATTERY_PIN, INPUT); //battery
 
   BTinit();
   
@@ -97,6 +131,15 @@ void loop() {
   IR_run();
   BLE();
   BTrun();
+  BatteryRead();
+  //servoTurnLeft();
+  // Serial.print("turning left");
+  int state = digitalRead(BATTERY_PIN); // Read digital value
+  Serial.println("The battery:");
+  Serial.println(state);   
+  
+ // servoTurnRight();
+   //Serial.println("turning right");
   
 }
 
@@ -127,6 +170,8 @@ void BTinit(){
   descriptor_2901->setDescription("My own description for this characteristic.");
   descriptor_2901->setAccessPermissions(ESP_GATT_PERM_READ);  // enforce read only - default is Read|Write
   pCharacteristic->addDescriptor(descriptor_2901);
+
+   pCharacteristic->setCallbacks(new MyCallbacks());
 
   // Start the service
   pService->start();
@@ -298,7 +343,7 @@ void BLE(){
     data[3] = Red;  // Example: Sensor 3 value (0-255)
     data[4] = Green;  // Example: Sensor 4 value (0-255)
     data[5] = Blue; 
-    data[6] = IRvalue;
+    data[6] = Vsource;// sending values *10
     //data[6] = batteryValue*10; //no float value
     //data[7] = servoValue;
  
@@ -326,6 +371,7 @@ void servoTurnRight(){
   }
 
 }
+delay(1500);
 }
 
 void servoTurnLeft(){
@@ -341,6 +387,7 @@ void servoTurnLeft(){
     myservo.write(pos);              // tell servo to go to position in variable 'pos'
     delay(15);                       // waits 15ms for the servo to reach the position
   }
+  delay(1500);
 
   }
 }
@@ -366,7 +413,36 @@ void DCmotorInit(){
 
 void DCmotorRun(){ //any speed?
 
+  if(receivedValue == 1){
+    //1 in the app is start
+    //motor goes
 
+
+  }
+  else if( receivedValue  == 2){
+    //motor stops, 2 is in the app as stop button
+  }
 
 
 }
+
+
+
+//16, 3
+
+void BatteryRead(){
+
+double Vread = analogRead( BATTERY_PIN);
+ int Rsmall = 3; //k
+ int Rbig = 16;//k
+ int Rsum = Rsmall+Rbig;
+ int Vsource = Vread* rsum / rsmall * 10
+ Serial.println(Vread);
+ 
+ if(Vsource==135){
+  //turn off the motor
+ }
+
+}
+
+
